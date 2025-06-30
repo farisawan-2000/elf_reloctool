@@ -26,18 +26,18 @@ enum RelocSection64 : uint32_t {
     RS_TEXTURE,
 };
 
-elfio reader;
+static elfio reader;
 reloc_header header = { 0 };
 
-std::unordered_map<std::string, uint32_t> section2idx;
+static std::unordered_map<std::string, uint32_t> section2idx;
 
 #define swap(x) (__builtin_bswap32((x)))
 
-uint32_t sizeconv(uint32_t size) {
+static uint32_t sizeconv(uint32_t size) {
     return size * sizeof(uint32_t);
 }
 
-void populate_convtbl() {
+static void populate_convtbl() {
     Elf_Half sec_num = reader.sections.size();
     for ( int i = 0; i < sec_num; ++i ) {
         const section* psec = reader.sections[i];
@@ -45,7 +45,7 @@ void populate_convtbl() {
     }
 }
 
-void populate_symbols(std::vector<uint32_t> &relVec, const uint32_t *accessors, uint32_t relsize) {
+static void populate_symbols(std::vector<uint32_t> &relVec, const uint32_t *accessors, uint32_t relsize) {
     section *symtable = reader.sections[".symtab"];
     const symbol_section_accessor symbols( reader, symtable );
     for (uint i = 0; i < (relsize / 2 / 4); i++) {
@@ -77,7 +77,7 @@ void populate_symbols(std::vector<uint32_t> &relVec, const uint32_t *accessors, 
     }
 }
 
-int main(int argc, char **argv) {
+int main2(int argc, char **argv) {
 
     if (argc != 2) {
         std::cout << "Usage: " << argv[0] << " [input/output .elf/.o file]" << std::endl;

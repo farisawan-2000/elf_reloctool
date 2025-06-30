@@ -7,5 +7,10 @@ build/:
 
 CXXFLAGS += -Ielfio -I.
 
-build/elfreloctool: expose_relocation_table.cpp | build/
-	c++ $(CXXFLAGS) -o $@ $<
+CXXFILES := $(wildcard src/*.cpp) $(wildcard src/*.cc)
+
+build/elfreloctool: $(CXXFILES) | build/
+	c++ $(CXXFLAGS) -o $@ $^
+
+print-% : ; $(info $* is a $(flavor $*) variable set to [$($*)]) @true
+

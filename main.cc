@@ -1,0 +1,111 @@
+#include "elfio/elfio.hpp"
+#include <iostream>
+#include <unordered_map>
+
+using namespace ELFIO;
+
+elfio reader;
+
+std::unordered_map<std::string, uint32_t> section2idx;
+
+#define swap(x) (__builtin_bswap32((x)))
+
+uint32_t sizeconv(uint32_t size) {
+    return size * sizeof(uint32_t);
+}
+
+void populate_convtbl() {
+    Elf_Half sec_num = reader.sections.size();
+    for ( int i = 0; i < sec_num; ++i ) {
+        const section* psec = reader.sections[i];
+        section2idx[std::string(psec->get_name())] = i;
+    }
+}
+
+void populate_symbols(std::vector<uint32_t> &relVec, const uint32_t *accessors, uint32_t relsize) {
+    section *symtable = reader.sections[".symtab"];
+    const symbol_section_accessor symbols( reader, symtable );
+    for (uint i = 0; i < (relsize / 2 / 4); i++) {
+        std::string name; Elf64_Addr value; Elf_Xword size;
+        unsigned char bind; unsigned char type;
+        Elf_Half section_index; unsigned char other;
+
+        uint32_t symIdx = swap(accessors[(i * 2) + 1]) >> 8;
+        uint32_t offset = swap(accessors[(i * 2) + 0]);
+
+        symbols.get_symbol(symIdx, name, value, size, bind,
+        type, section_index, other );
+
+        if (section_index == 0) {
+            // No section, i.e. symbol is not in this file
+        } else {
+            // put it on the reloc table (and byteswap it back)
+            relVec.emplace_back(swap(offset));
+            if (section2idx[".rodata.collision"] == section_index) {
+                relVec.emplace_back(swap(RS_COLLISION));
+            } else if (section2idx[".rodata"] == section_index) {
+                relVec.emplace_back(swap(RS_MODEL));
+            } else if (section2idx[".rodata.geolayout"] == section_index) {
+                relVec.emplace_back(swap(RS_GEO));
+            } else if (section2idx[".rodata.animation"] == section_index) {
+                relVec.emplace_back(swap(RS_ANIM));
+            }
+        }
+    }
+}
+
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " [input/output .elf/.o file]" << std::endl;
+        return 1;
+    }
+
+    if (!reader.load(argv[1])) {
+        std::cout << "Error: " << argv[1] << ": No such file." << std::endl;
+        return 2;
+    }
+
+    populate_convtbl();
+
+    Elf_Half sec_num = reader.sections.size();
+
+    for (int i = 0; i < sec_num; i++) {
+        const section *psec = reader.sections[i];
+
+        std::cout << "Reading section " << psec->get_name() << " ..." << std::endl;
+        
+        std::string relname;
+
+        relname = std::string(".rel") + psec->get_name();
+
+        std::cout << "    rel name: " << relname << " ..." << std::endl;
+
+        const section *prel = reader.sections[relname];
+
+        if (prel) {
+            const char *reldata = prel->get_data();
+            const uint32_t *accessors = reinterpret_cast<const uint32_t*>(reldata);
+
+            std::string outname = std::string("out/") + prel->get_name();
+
+            std::cout << "Making " << outname << "..." << std::endl;
+
+            FILE *f = fopen(outname.c_str(), "wb+");
+            fwrite(prel->get_data(), 1, prel->get_size(), f);
+            fclose(f);
+        }
+
+    }
+
+
+    // add our epic new section
+    // section* out_sec = reader.sections.add(".reloc_data");
+    // out_sec->set_type( SHT_PROGBITS );
+    // out_sec->set_flags( SHF_ALLOC );
+    // out_sec->set_addr_align( 0x10 );
+
+    // out_sec->set_data((const char *)swappedOutput.data(), (Elf_Word) (swappedOutput.size() * sizeof(uint32_t)));
+    // reader.save(argv[1]);
+
+    return 0;
+}
