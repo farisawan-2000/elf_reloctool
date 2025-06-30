@@ -1,12 +1,15 @@
 #include "elfio/elfio.hpp"
 #include <iostream>
 #include <unordered_map>
+#include "mips_reloc_types.hpp"
 
 using namespace ELFIO;
 
 elfio reader;
 
 std::unordered_map<std::string, uint32_t> section2idx;
+
+extern std::unordered_map<int, std::string> reloctypes;
 
 #define swap(x) (__builtin_bswap32((x)))
 
@@ -36,20 +39,15 @@ void populate_symbols(std::vector<uint32_t> &relVec, const uint32_t *accessors, 
         symbols.get_symbol(symIdx, name, value, size, bind,
         type, section_index, other );
 
+        if (type != R_MIPS_NONE) {
+            std::cout << "Found " << name << " with reloc type " << reloctypes[type] << std::endl;
+        }
+
         if (section_index == 0) {
             // No section, i.e. symbol is not in this file
         } else {
             // put it on the reloc table (and byteswap it back)
-            relVec.emplace_back(swap(offset));
-            if (section2idx[".rodata.collision"] == section_index) {
-                relVec.emplace_back(swap(RS_COLLISION));
-            } else if (section2idx[".rodata"] == section_index) {
-                relVec.emplace_back(swap(RS_MODEL));
-            } else if (section2idx[".rodata.geolayout"] == section_index) {
-                relVec.emplace_back(swap(RS_GEO));
-            } else if (section2idx[".rodata.animation"] == section_index) {
-                relVec.emplace_back(swap(RS_ANIM));
-            }
+            // relVec.emplace_back(swap(offset));
         }
     }
 }
@@ -72,7 +70,9 @@ int main(int argc, char **argv) {
     for (int i = 0; i < sec_num; i++) {
         const section *psec = reader.sections[i];
 
-        std::cout << "Reading section " << psec->get_name() << " ..." << std::endl;
+        std::cout << "Reading section "
+                  << psec->get_name()
+                  << " ..." << std::endl;
         
         std::string relname;
 
@@ -85,6 +85,16 @@ int main(int argc, char **argv) {
         if (prel) {
             const char *reldata = prel->get_data();
             const uint32_t *accessors = reinterpret_cast<const uint32_t*>(reldata);
+            std::vector<uint32_t> relocs;
+
+            // relocation_section_accessor accessr(elfio, prel);
+
+            populate_symbols(relocs, accessors, prel->get_size());
+
+            const char *reldata2 = psec->get_data();
+            const uint32_t *accessors2 = reinterpret_cast<const uint32_t*>(reldata);
+            std::vector<uint32_t> relocs2;
+            populate_symbols(relocs2, accessors2, psec->get_size());
 
             std::string outname = std::string("out/") + prel->get_name();
 

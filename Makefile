@@ -5,7 +5,7 @@ all: build/elfreloctool
 build/:
 	mkdir -p $@
 
-CXXFLAGS += -Ielfio -I.
+CXXFLAGS += -Ielfio -I. -Iinclude
 
 CXXFILES := $(wildcard src/*.cpp) $(wildcard src/*.cc)
 
