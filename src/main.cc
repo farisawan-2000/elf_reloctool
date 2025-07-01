@@ -70,17 +70,20 @@ int main(int argc, char **argv) {
     for (int i = 0; i < sec_num; i++) {
         const section *psec = reader.sections[i];
 
-        std::cout << "Reading section "
-                  << psec->get_name()
-                  << " ..." << std::endl;
+        // std::cout << "Reading section "
+        //           << psec->get_name()
+        //           << " ..." << std::endl;
         
         std::string relname;
 
         relname = std::string(".rel") + psec->get_name();
 
-        std::cout << "    rel name: " << relname << " ..." << std::endl;
+        // std::cout << "    rel name: " << relname << " ..." << std::endl;
 
         section *prel = reader.sections[relname];
+
+        section *symtable = reader.sections[".symtab"];
+        const symbol_section_accessor symbols( reader, symtable );
 
         if (prel) {
             const char *reldata = prel->get_data();
@@ -95,17 +98,25 @@ int main(int argc, char **argv) {
                 unsigned int type;
                 Elf_Sxword addend = 0;
 
-                // get_entry(ELFIO::Elf_Xword, ELFIO::Elf64_Addr&, ELFIO::Elf_Word&, unsigned int&, ELFIO::Elf_Sxword&)
+                std::string name; Elf64_Addr value; Elf_Xword size;
+                unsigned char bind; unsigned char type2;
+                Elf_Half section_index; unsigned char other;
+
                 reloc_accessor.get_entry((Elf_Xword)i, offset, symbol_index, type, addend);
+                symbols.get_symbol(symbol_index, name, value, size, bind,
+                type2, section_index, other );
+
+                // get_entry(ELFIO::Elf_Xword, ELFIO::Elf64_Addr&, ELFIO::Elf_Word&, unsigned int&, ELFIO::Elf_Sxword&)
                 // if (prel->get_type() == SHT_RELA) {
                 // } else {
                 //     reloc_accessor.get_entry((Elf_Xword)i, offset, symbol_index, type);
                 // }
 
                 // Print relocation type and symbol index
-                std::cout << "Relocation entry " << i
-                          << ": symbol index = " << symbol_index
-                          << ", type = " << reloctypes[type] << std::endl;
+                if (bind == STB_LOCAL) {
+                    std::cout << "Found " << name
+                          << " @ 0x" << std::hex << offset << std::dec << ", type = " << reloctypes[type] << std::endl;
+                }
             }
 
             // populate_symbols(relocs, accessors, prel->get_size());
