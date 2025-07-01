@@ -80,29 +80,43 @@ int main(int argc, char **argv) {
 
         std::cout << "    rel name: " << relname << " ..." << std::endl;
 
-        const section *prel = reader.sections[relname];
+        section *prel = reader.sections[relname];
 
         if (prel) {
             const char *reldata = prel->get_data();
             const uint32_t *accessors = reinterpret_cast<const uint32_t*>(reldata);
             std::vector<uint32_t> relocs;
 
-            // relocation_section_accessor accessr(elfio, prel);
+            relocation_section_accessor reloc_accessor(reader, prel);
 
-            populate_symbols(relocs, accessors, prel->get_size());
+            for (uint i = 0; i < reloc_accessor.get_entries_num(); ++i) {
+                Elf64_Addr offset;
+                Elf_Word symbol_index;
+                unsigned int type;
+                Elf_Sxword addend = 0;
 
-            const char *reldata2 = psec->get_data();
-            const uint32_t *accessors2 = reinterpret_cast<const uint32_t*>(reldata);
-            std::vector<uint32_t> relocs2;
-            populate_symbols(relocs2, accessors2, psec->get_size());
+                // get_entry(ELFIO::Elf_Xword, ELFIO::Elf64_Addr&, ELFIO::Elf_Word&, unsigned int&, ELFIO::Elf_Sxword&)
+                reloc_accessor.get_entry((Elf_Xword)i, offset, symbol_index, type, addend);
+                // if (prel->get_type() == SHT_RELA) {
+                // } else {
+                //     reloc_accessor.get_entry((Elf_Xword)i, offset, symbol_index, type);
+                // }
 
-            std::string outname = std::string("out/") + prel->get_name();
+                // Print relocation type and symbol index
+                std::cout << "Relocation entry " << i
+                          << ": symbol index = " << symbol_index
+                          << ", type = " << reloctypes[type] << std::endl;
+            }
 
-            std::cout << "Making " << outname << "..." << std::endl;
+            // populate_symbols(relocs, accessors, prel->get_size());
 
-            FILE *f = fopen(outname.c_str(), "wb+");
-            fwrite(prel->get_data(), 1, prel->get_size(), f);
-            fclose(f);
+            // std::string outname = std::string("out/") + prel->get_name();
+
+            // std::cout << "Making " << outname << "..." << std::endl;
+
+            // FILE *f = fopen(outname.c_str(), "wb+");
+            // fwrite(prel->get_data(), 1, prel->get_size(), f);
+            // fclose(f);
         }
 
     }
