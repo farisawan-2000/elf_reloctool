@@ -106,14 +106,13 @@ int main(int argc, char **argv) {
                 symbols.get_symbol(symbol_index, name, value, size, bind,
                 type2, section_index, other );
 
-                // get_entry(ELFIO::Elf_Xword, ELFIO::Elf64_Addr&, ELFIO::Elf_Word&, unsigned int&, ELFIO::Elf_Sxword&)
                 // if (prel->get_type() == SHT_RELA) {
                 // } else {
                 //     reloc_accessor.get_entry((Elf_Xword)i, offset, symbol_index, type);
                 // }
 
                 // Print relocation type and symbol index
-                if (bind == STB_LOCAL) {
+                if (section_index != 0) {
                     std::cout << "Found " << name
                           << " @ 0x" << std::hex << offset << std::dec << ", type = " << reloctypes[type] << std::endl;
                 }
